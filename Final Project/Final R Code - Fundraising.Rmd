@@ -1,0 +1,817 @@
+---
+title: "Fundraising R Code - FFK221"
+author: "Austin Thrash - FFK221"
+date: "2024-03-21"
+output: 
+  html_document:
+    toc: true
+toc-title: "Table of Contents:"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr) # data wrangling
+library(tidyr) # data wrangling
+library(ggplot2) # plotting
+library(rpart) # DT
+library(tidyverse)
+library(car)
+library(tree)
+library(caret)
+library(MASS)
+library(ROCR)
+library(randomForest)
+library(corrplot)
+library(ggcorrplot) # corr plot
+library(reshape2) # heat map
+library(GGally) # Pais ggplot2
+```
+
+# Fundraising Project
+
+For this project we will be using 'fundraising.csv' and 'future_fundraising.csv' for our data.
+
+## Background
+
+A national veterans' organization wishes to develop a predictive model to improve the cost-effectiveness of their direct marketing campaign. The organization, with its in-house database of over 13 million donors, is one of the largest direct-mail fundraisers in the United States. According to their recent mailing records, the overall response rate is 5.1%. Out of those who responded (donated), the average donation is \$13.00. Each mailing, which includes a gift of personalized address labels and assortments of cards and envelopes, costs \$0.68 to produce and send. Using these facts, we take a sample of this dataset to develop a classification model that can effectively capture donors so that the expected net profit is maximized. Weighted sampling was used, under-representing the non-responders so that the sample has equal numbers of donors and non-donors.
+
+## Data
+
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| [**Variable**]{.underline} | [**Description**]{.underline}                                                                                   |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **zip**                    | Zip code group (zip codes were grouped into five groups; Yes = the potential donor belongs to this zip group.)\ |
+|                            | 00000--19999 ⇒ zipconvert1\                                                                                     |
+|                            | 20000--39999 ⇒ zipconvert2\                                                                                     |
+|                            | 40000--59999 ⇒ zipconvert3\                                                                                     |
+|                            | 60000--79999 ⇒ zipconvert4\                                                                                     |
+|                            | 80000--99999 ⇒ zipconvert5                                                                                      |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **homeowner**              | Yes = homeowner, No = not a homeowner                                                                           |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **num_child**              | Number of children                                                                                              |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **income**                 | Household income                                                                                                |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **female**                 | No = male, Yes = female                                                                                         |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **wealth**                 | Wealth rating uses median family income and population statistics from each area to\                            |
+|                            | index relative wealth within each state. The segments are denoted 0 to 9, with 9\                               |
+|                            | being the highest-wealth group and zero the lowest. Each rating has a different\                                |
+|                            | meaning within each state                                                                                       |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **home_value**             | Average home value in potential donor\'s neighborhood in hundreds of dollars                                    |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **med_fam_inc**            | Median family income in potential donor\'s neighborhood in hundreds of dollars                                  |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **avg_fam_inc**            | Average family income in potential donor\'s neighborhood in hundreds                                            |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **pct_lt15k**              | Percent earning less than \$15K in potential donor\'s neighborhood                                              |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **num_prom**               | Lifetime number of promotions received to date                                                                  |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **lifetime_gifts**         | Dollar amount of lifetime gifts to date                                                                         |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **largest_gift**           | Dollar amount of largest gift to date                                                                           |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **last_gift**              | Dollar amount of most recent gift                                                                               |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **months_since_donate**    | Number of months from last donation to July 2018                                                                |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **time_lag**               | Number of months between first and second gift                                                                  |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **avg_gift**               | Average dollar amount of gifts to date                                                                          |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+| **target**                 | Outcome variable: binary indicator for response Yes = donor, No = non-dono                                      |
++----------------------------+-----------------------------------------------------------------------------------------------------------------+
+
+## Assignment
+
+### Step 1: Partitioning. 
+
+You might think about how to estimate the out of sample error. Either partition the dataset into 80% training and 20% validation or use cross validation (set the seed to 12345).
+
+### Step 2: Model Building. 
+
+Follow the following steps to build, evaluate, and choose a model.
+
+#### Exploratory data analysis. 
+
+Examine the predictors and evaluate their association with the response variable. Which might be good candidate predictors? Are any collinear with each other?
+
+#### Select classification tool and parameters. 
+
+Run at least two classification models of your choosing. Describe the two models that you chose, with sufficient detail (method, parameters, variables, etc.) so that it can be reproduced.
+
+#### Classification under asymmetric response and cost. 
+
+Comment on the reasoning behind using weighted sampling to produce a training set with equal numbers of donors and non-donors? Why not use a simple random sample from the original dataset?
+
+#### Evaluate the fit. 
+
+Examine the out of sample error for your models. Use tables or graphs to display your results. Is there a model that dominates?
+
+#### Select best model. 
+
+From your answer in (4), what do you think is the "best" model?
+
+### Step 3: Testing. 
+
+The future fundraising test file contains the attributes for future mailing candidates.
+
+Using your "best" model from Step 2 (number 4), which of these candidates do you predict as donors and non-donors? Use your best model and predict whether the candidate will be a donor or not. Upload your prediction to the leaderboard and comment on the result.
+
+#### Submission File. 
+
+For each row in the test set, you must predict whether or not the candidate is a donor or not. You might find the write_csvLinks to an external site. function helpful because the .csv file should contain a header and have the following format (sample file) Download sample file)Open this document with ReadSpeaker docReader:
+
+## Write-Up
+
+Document the entire process and findings for audit requirements and future work. Ideally, you should document the following:
+
+-   [*Business Objectives and Goals.*]{.underline} Successful businesses are based on both goals and objectives, as they clarify the purpose of the business and help identify necessary actions. Goals are general statements of desired achievement, while objectives are the specific steps or actions you take to reach your goal.
+
+-   [*Data Sources and Data used.*]{.underline} Readers need to know how the data was obtained because the method you choose affects the results and, by extension, how you likely interpreted those\
+    results. Here\'s where you include your discussion on the reasoning behind using weighted sampling to produce a training set with equal numbers of donors and non-donors? Why not use a simple random sample from the original dataset?
+
+-   [*Type of Analysis performed:*]{.underline} what, why, findings. Methodology is crucial for any branch of scholarship because an unreliable method produces unreliable results and it misappropriates\
+    interpretations of findings. In most cases, there are a variety of different methods you can choose to investigate a research problem. This section should make clear the reasons why you\
+    chose a particular method or procedure.
+
+-   [*Exclusions.*]{.underline}Excluding a class from prediction or an observation is done if its precision or coverage statistics don't meet your threshold of usefulness. For example, exclude it if you don't\
+    want the model to predict a particular output field value. Train the solution definition whose output field values you want to exclude.
+
+-   [*Variable transformations.*]{.underline} Variable transformation is a way to make the data work better in your model. Data variables can have two types of form: numeric variable and categorical  variable, and their transformation should have different approaches. If you made a transformation, talk about it. If you created a new variable, talk about it.
+
+-   [*Business inputs.*]{.underline} Resources such as people, raw materials, energy, information, or finance that are put into a system (such as an economy, manufacturing plant, computer system) to obtain a desired output.
+
+-   [*Methodology used, background, benefits.*]{.underline} Research methodology is the specific procedures or techniques used to identify, select, process, and analyze information about a topic. In a research paper, the methodology section allows the reader to critically evaluate a study's overall validity and reliability. Discuss any alternative methodologies you tried.
+
+-   [*Model performance and Validation Results.*]{.underline} Evaluating a model is a core part of building an effective machine learning model. There are several evaluation metrics, like confusion matrix,\
+    cross-validation, AUC-ROC curve, etc. Evaluation metrics explain the performance of a model. An important aspect of evaluation metrics is their capability to discriminate among model results.
+
+-   [*Cut-Off Analysis.*]{.underline} While the ROC curve and corresponding AUC give an overall picture of the behavior of a diagnostic test across all cutoff values, there remains a practical need to\
+    determine the specific cutoff value that should be used for individuals requiring labeling. The optimal cutoff value is the one that minimizes cost.
+
+-   [*Recommendations.*]{.underline} Example of recommendations can be defined as a critical suggestion regarding the best course of action in a certain situation. The whole idea of a recommendation\
+    is to provide a beneficial guide that will not only resolve certain issues, but result in a beneficial outcome. What percentage of your data would you recommend for a mailing campaign?
+
+-   [*Pseudo codes for implementation.*]{.underline} Give me your R code. Add it as an appendix to your .pdf document.
+
+# Code
+
+## Reading in the data
+
+```{r}
+# Load the necessary library
+library(readr)
+
+# Read the data from the CSV file
+data <- read_csv("fundraising.csv")
+
+# Display the first few rows of the dataset
+print(head(data))
+
+str(data)
+
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+
+# Summary of the numerical attributes
+print(summary(data[, sapply(data, is.numeric)]))
+
+# Plotting distribution of a few numerical attributes
+ggplot(data, aes(x = target, fill = target)) + geom_bar() + ggtitle("Distribution of target")
+
+ggplot(data, aes(x = wealth)) + geom_histogram(bins = 10, fill = "cyan3", color = "black") + ggtitle("Distribution of wealth")
+
+ggplot(data, aes(x = log(avg_gift))) + geom_histogram(bins = 30, fill = "cyan3", color = "black") + ggtitle("Distribution of log(avg_gift)")
+
+ggplot(data, aes(x = largest_gift)) + geom_histogram(bins = 30, fill = "cyan3", color = "black") + ggtitle("Distribution of largest_gift")
+
+ggplot(data, aes(x = last_gift)) + geom_histogram(bins = 30, fill = "cyan3", color = "black") + ggtitle("Distribution of last_gift")
+
+ggplot(data, aes(x = lifetime_gifts)) + geom_histogram(bins = 30, fill = "cyan3", color = "black") + ggtitle("Distribution of lifetime_gifts")
+
+ggplot(data, aes(x = num_prom)) + geom_histogram(bins = 30, fill = "cyan3", color = "black") + ggtitle("Distribution of num_prom")
+
+ggplot(data, aes(x = num_child)) + geom_histogram(bins = 30, fill = "cyan3", color = "black") + ggtitle("Distribution of num_child")
+ggplot(data, aes(x = income)) + geom_histogram(bins = 30, fill = "cyan3", color = "black") + ggtitle("Distribution of income")
+
+# Association with target variable example
+ggplot(data, aes(x = homeowner, fill = target)) + geom_bar(position = "fill") + ggtitle("Homeowner status by Target")
+
+# Association with target variable example
+ggplot(data, aes(x = female, fill = target)) + geom_bar(position = "fill") + ggtitle("Female status by Target")
+
+# Association with target variable example
+ggplot(data, aes(x = wealth, fill = target)) + geom_bar(position = "fill") + ggtitle("Wealth status by Target")
+
+# Association with target variable example
+ggplot(data, aes(x = income, fill = target)) + geom_bar(position = "fill") + ggtitle("Income status by Target")
+
+# Association with target variable example
+ggplot(data, aes(x = num_prom, fill = target)) + geom_bar(position = "fill") + ggtitle("Num_prom status by Target")
+
+```
+
+```{r}
+# Load necessary library for correlation matrix
+library(corrplot)
+
+# Compute the correlation matrix for numerical attributes
+numerical_data <- data[, sapply(data, is.numeric)]
+cor_matrix <- cor(numerical_data, use = "complete.obs")  # Handles missing values by excluding them
+
+# Plot the correlation matrix
+corrplot(cor_matrix, method = "color", type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 45, addCoef.col = "black", number.cex = 0.5)
+```
+
+```{r}
+ggpairs(data[, c(10, 11, 12, 17, 20)], ggplot2::aes(colour = data$target))
+```
+
+## Preparing Cross Validation
+
+```{r}
+set.seed(12345)
+# Initialize zipconvert1 with 0
+data$zipconvert1 <- "No"
+
+# Set zipconvert1 to 1 where all other zipconverts are 0
+data$zipconvert1[with(data, zipconvert2 == "No" & zipconvert3 == "No" & zipconvert4 == "No" & zipconvert5 == "No")] <- "Yes"
+
+data$zip_group[data$zipconvert1 == "Yes"] <- '1'
+data$zip_group[data$zipconvert2 == "Yes"] <- '2'
+data$zip_group[data$zipconvert3 == "Yes"] <- '3'
+data$zip_group[data$zipconvert4 == "Yes"] <- '4'
+data$zip_group[data$zipconvert5 == "Yes"] <- '5'
+
+# Ensure it's a factor
+data$zip_group <- as.factor(data$zip_group)
+
+# Optionally remove the old zipconvert columns
+data$zipconvert1 <- NULL
+data$zipconvert2 <- NULL
+data$zipconvert3 <- NULL
+data$zipconvert4 <- NULL
+data$zipconvert5 <- NULL
+# Assuming 'target' is your factor column in the dataset 'data'
+data$target <- as.factor(data$target)
+levels(data$target) <- c("Donor", "No.Donor")  # Adjust as necessary to match exact output requirements
+data$homeowner <-as.factor(data$homeowner)
+data$income <- as.factor(data$income)
+data$female <- as.factor(data$female)
+data$wealth <- as.factor(data$wealth)
+```
+
+```{r}
+
+glm.full = glm(target ~ . - avg_fam_inc - last_gift -home_value, data = data, family = binomial)
+
+glm.vif = vif(glm.full)
+
+glm.vif
+```
+
+```{r}
+set.seed(12345)
+import_features = train(target ~ . - zip_group - avg_fam_inc, 
+               data = data, 
+               method = "rf", 
+               importance = TRUE, 
+               trControl = trainControl(method = "cv", number = 10, verbose = TRUE))
+
+import_features
+```
+
+```{r}
+plot(import_features, m.target = "NULL",
+  plots.one.page = TRUE, sorted = TRUE, verbose = F)
+```
+
+```{r}
+plot(varImp(import_features))
+```
+
+```{r}
+# Load the necessary library
+library(caret)
+
+customSummary <- function(data, lev = NULL, model = NULL) {
+  # Calculate confusion matrix
+  conf <- confusionMatrix(data$pred, data$obs, positive = lev[2])
+
+  # Extract metrics
+  out <- c(accuracy = conf$overall['Accuracy'],
+           precision = conf$byClass['Precision'],
+           recall = conf$byClass['Recall'],
+           F1 = conf$byClass['F1'])
+  names(out) <- c("Accuracy", "Precision", "Recall", "F1")
+  out
+}
+
+# Set up cross-validation
+set.seed(12345)  # for reproducibility
+train_control <- trainControl(
+  method = "repeatedcv",    # Repeated cross-validation
+  number = 10,              # Number of folds in the k-fold process
+  repeats = 3,              # Number of repeats
+  savePredictions = "final",
+  classProbs = TRUE,        # If classification, save class probabilities
+  summaryFunction = customSummary  # Custom summary function for binary classification
+)
+
+```
+
+## Logistic Regression - All Features
+
+### Training
+
+```{r}
+set.seed(12345)
+logistic_model <- train(target ~ ., 
+                        data = data, 
+                        method = "glm", 
+                        family = "binomial",
+                        trControl = train_control,
+                        preProcess = c("center", "scale"),
+                        metric = "ROC")  # Optimization metric is ROC AUC
+```
+
+### Results Overall
+
+```{r}
+results <- logistic_model$results
+print(results[, c("Accuracy", "Precision", "Recall", "F1")])
+```
+
+### Confusion Matrix
+
+```{r}
+# Confusion Matrix and classification summary
+confusionMatrix(predict(logistic_model, data), data$target)
+```
+
+### ROC and AUC
+
+```{r}
+library(pROC)
+
+# Predict probabilities
+probabilities <- predict(logistic_model, data, type = "prob")
+
+# Calculate ROC curve
+roc_curve <- roc(response = data$target, predictor = probabilities[, "Donor"])
+
+# Plot ROC curve
+plot(roc_curve, main = "ROC Curve")
+auc(roc_curve)
+
+## Scored 0.46
+```
+
+```{r}
+
+# Predict probabilities on the validation set
+predictions <- predict(logistic_model, data, type = "prob")
+
+probabilities <- predictions$Donor
+
+# Define cost of sending a mail and average donation amount
+cost_per_mail <- 0.68  # Cost of each mailing
+average_donation <- 13.00  # Average donation received from a positive response
+
+# Initialize a vector to store net profits for each threshold
+thresholds <- seq(0.1, 0.9, by = 0.1)
+net_profits <- numeric(length(thresholds))
+
+# Calculate net profit for each threshold
+for (i in seq_along(thresholds)) {
+  cut_off <- thresholds[i]
+  
+  # Predict labels based on cut-off
+  predicted_labels <- ifelse(probabilities > cut_off, 1, 0)
+  
+  # Calculate True Positives and False Positives
+  true_positives <- sum(predicted_labels == 1 & data$target == "Donor")
+  false_positives <- sum(predicted_labels == 1 & data$target == "No Donor")
+  
+  # Calculate cost and revenue
+  cost <- false_positives * cost_per_mail
+  revenue <- true_positives * average_donation
+  
+  # Calculate net profit
+  net_profits[i] <- revenue - cost
+}
+
+# Identify the optimal threshold
+optimal_index <- which.max(net_profits)
+optimal_threshold <- thresholds[optimal_index]
+optimal_net_profit <- net_profits[optimal_index]
+
+cat("Optimal Cut-off:", optimal_threshold, "\n",
+    "Maximum Net Profit:", optimal_net_profit, "\n")
+
+```
+
+### Hyperparameter and feature selection tuning
+
+```{r}
+glm.empty = glm(target ~ 1, data = data, family = binomial)
+glm.full = glm(target ~ . -zip_group, data = data, family = binomial)
+
+step.AIC = step(glm.empty, scope = list(upper=glm.full),
+     direction ="both",test ="Chisq", trace = F)
+
+summary(step.AIC)
+```
+
+```{r}
+library(caret)
+set.seed(12345)
+
+# Define a custom summary function for binary classification metrics
+customSummary <- function(data, lev = NULL, model = NULL) {
+  # Calculate confusion matrix
+  conf <- confusionMatrix(data$pred, data$obs, positive = lev[2])
+
+  # Extract metrics
+  out <- c(accuracy = conf$overall['Accuracy'],
+           precision = conf$byClass['Precision'],
+           recall = conf$byClass['Recall'],
+           F1 = conf$byClass['F1'])
+  names(out) <- c("Accuracy", "Precision", "Recall", "F1")
+  out
+}
+
+# Define the training control
+train_control <- trainControl(
+  method = "cv",
+  number = 10,
+  savePredictions = "final",
+  classProbs = TRUE,
+  summaryFunction = customSummary
+)
+
+# Define the tuning grid
+tuning_grid <- expand.grid(
+  .alpha = seq(0, 1, by = 0.01),  # Mixing ratio of L1 and L2
+  .lambda = 10^seq(-3, -1, by = 0.1)  # Regularization strength
+)
+
+# Train the model
+logistic_model <- train(
+  target ~ months_since_donate + last_gift,
+  data = data,
+  method = "glmnet",
+  tuneGrid = tuning_grid,
+  trControl = train_control,
+  preProcess = c("center", "scale"),
+  metric = "ROC",
+  family = "binomial"
+)
+
+# Print the overall model summary
+print(logistic_model)
+
+# Display the best tuning parameters
+best_params <- logistic_model$bestTune
+print(paste("Best alpha:", best_params$alpha))
+print(paste("Best lambda:", best_params$lambda))
+```
+
+```{r}
+results <- logistic_model$results
+print(paste("Accuracy:", mean(results[, "Accuracy"])))
+print(paste("Precision:",mean(results[, "Precision"])))
+print(paste("Recall:",mean(results[, "Recall"])))
+print(paste("F1:",mean(results[, "F1"])))
+```
+
+### Hyper Tune Results Overall
+
+```{r}
+# Load necessary libraries
+library(caret)
+library(pROC)
+
+# Assume logistic_model is already trained and available
+
+# Predict on the training dataset to evaluate performance
+predictions <- predict(logistic_model, data, type = "raw")
+probabilities <- predict(logistic_model, data, type = "prob")
+
+# Calculate the ROC curve and AUC
+roc_result <- roc(data$target, probabilities[, "Donor"])  # Adjust class label if necessary
+
+# Print the AUC
+print(paste("AUC of the best model:", auc(roc_result)))
+
+# Generate a confusion matrix
+confusionMatrix(predictions, data$target)
+```
+
+### Hyper Tune ROC and AUC
+
+```{r}
+library(pROC)
+
+# Predict probabilities
+probabilities <- predict(logistic_model, data, type = "prob")
+
+# Calculate ROC curve
+roc_curve <- roc(response = data$target, predictor = probabilities[, "Donor"])
+
+# Plot ROC curve
+plot(roc_curve, main = "ROC Curve")
+auc(roc_curve)
+```
+
+## Random Forest
+
+### Training
+
+```{r}
+set.seed(12345)
+
+customSummary <- function(data, lev = NULL, model = NULL) {
+  # Calculate confusion matrix
+  conf <- confusionMatrix(data$pred, data$obs, positive = lev[2])
+
+  # Extract metrics
+  out <- c(accuracy = conf$overall['Accuracy'],
+           precision = conf$byClass['Precision'],
+           recall = conf$byClass['Recall'],
+           F1 = conf$byClass['F1'])
+  names(out) <- c("Accuracy", "Precision", "Recall", "F1")
+  out
+}
+
+train_control = trainControl(method="repeatedcv", 
+                             number=10,
+                             repeats=3, 
+                             summaryFunction = customSummary)
+
+random.forrest = train(target ~ months_since_donate + last_gift,
+                data = data,
+                method = 'rf',
+                trControl = train_control,
+                importance = TRUE)
+```
+
+### Results
+
+```{r}
+results <- random.forrest$results
+print(paste("Accuracy:", mean(results[, "Accuracy"])))
+print(paste("Precision:",mean(results[, "Precision"])))
+print(paste("Recall:",mean(results[, "Recall"])))
+print(paste("F1:",mean(results[, "F1"])))
+```
+
+### Confusion Matrix
+
+```{r}
+# Predict on the training dataset to evaluate performance
+predictions <- predict(random.forrest, data, type = "raw")
+probabilities <- predict(random.forrest, data, type = "prob")
+
+# Calculate the ROC curve and AUC
+roc_result <- roc(data$target, probabilities[, "Donor"])  # Adjust class label if necessary
+
+# Print the AUC
+print(paste("AUC of the best model:", auc(roc_result)))
+
+# Generate a confusion matrix
+confusionMatrix(predictions, data$target)
+```
+
+### ROC Curve
+
+```{r}
+# Predict probabilities
+probabilities <- predict(random.forrest, data, type = "prob")
+
+# Calculate ROC curve
+roc_curve <- roc(response = data$target, predictor = probabilities[, "Donor"])
+
+# Plot ROC curve
+plot(roc_curve, main = "ROC Curve")
+auc(roc_curve)
+```
+
+```{r}
+# Predict probabilities on the validation set
+predictions <- predict(random.forrest, data, type = "prob")
+
+# Extract the probabilities of the positive class (assuming 'Yes' is the positive class label)
+probabilities <- predictions$Donor
+
+# Define cost of sending a mail and average donation amount
+cost_per_mail <- 0.68  # Cost of each mailing
+average_donation <- 13.00  # Average donation received from a positive response
+
+# Initialize a vector to store net profits for each threshold
+thresholds <- seq(0.1, 0.9, by = 0.1)
+net_profits <- numeric(length(thresholds))
+
+# Calculate net profit for each threshold
+for (i in seq_along(thresholds)) {
+  cut_off <- thresholds[i]
+  
+  # Predict labels based on cut-off
+  predicted_labels <- ifelse(probabilities > cut_off, 1, 0)
+  
+  # Calculate True Positives and False Positives
+  true_positives <- sum(predicted_labels == 1 & data$target == "Donor")
+  false_positives <- sum(predicted_labels == 1 & data$target == "No Donor")
+  
+  # Calculate cost and revenue
+  cost <- false_positives * cost_per_mail
+  revenue <- true_positives * average_donation
+  
+  # Calculate net profit
+  net_profits[i] <- revenue - cost
+}
+
+# Identify the optimal threshold
+optimal_index <- which.max(net_profits)
+optimal_threshold <- thresholds[optimal_index]
+optimal_net_profit <- net_profits[optimal_index]
+
+cat("Optimal Cut-off:", optimal_threshold, "\n",
+    "Maximum Net Profit:", optimal_net_profit, "\n")
+```
+
+## KNN
+
+### Training
+
+```{r}
+library(caret)
+set.seed(12345)  # for reproducibility
+
+customSummary <- function(data, lev = NULL, model = NULL) {
+  # Calculate confusion matrix
+  conf <- confusionMatrix(data$pred, data$obs, positive = lev[2])
+
+  # Extract metrics
+  out <- c(accuracy = conf$overall['Accuracy'],
+           precision = conf$byClass['Precision'],
+           recall = conf$byClass['Recall'],
+           F1 = conf$byClass['F1'])
+  names(out) <- c("Accuracy", "Precision", "Recall", "F1")
+  out
+}
+
+# Define the training control
+train_control <- trainControl(
+  method = "cv",             # Use cross-validation
+  number = 10,               # Number of folds in the cross-validation
+  savePredictions = "final", # Save predictions for each fold
+  classProbs = TRUE,         # Save class probabilities for ROC analysis
+  summaryFunction = customSummary  # Summary function for binary classification
+)
+
+# Define the tuning grid for KNN
+tuning_grid <- expand.grid(k = seq(3, 21, by = 2))  # Test odd values of k from 3 to 21
+
+knn_model <- train(target ~ months_since_donate + last_gift, 
+                   data = data, 
+                   method = "knn", 
+                   trControl = train_control, 
+                   tuneGrid = tuning_grid, 
+                   metric = "ROC",
+                   preProcess = c("center", "scale"))  # Pre-processing step to scale and center data
+```
+
+### Results
+
+```{r}
+results <- knn_model$results
+print(paste("Accuracy:", mean(results[, "Accuracy"])))
+print(paste("Precision:",mean(results[, "Precision"])))
+print(paste("Recall:",mean(results[, "Recall"])))
+print(paste("F1:",mean(results[, "F1"])))
+```
+
+### Confusion Matrix
+
+```{r}
+# Best model's predictions
+best_predictions <- knn_model$pred[knn_model$pred$k == knn_model$bestTune$k,]
+
+# Confusion matrix
+confusionMatrix(best_predictions$pred, best_predictions$obs)
+
+```
+
+### ROC Curve
+
+```{r}
+library(pROC)
+
+# ROC curve
+roc_curve <- roc(best_predictions$obs, best_predictions$Donor)  # Ensure 'Donor' matches your positive class label
+
+# Plot ROC
+plot(roc_curve, main = "ROC Curve for KNN Model")
+
+# Print AUC
+print(paste("AUC:", auc(roc_curve)))
+
+```
+
+```{r}
+# Predict probabilities on the validation set
+predictions <- predict(knn_model, data, type = "prob")
+
+# Extract the probabilities of the positive class (assuming 'Yes' is the positive class label)
+probabilities <- predictions$Donor
+
+# Define cost of sending a mail and average donation amount
+cost_per_mail <- 0.68  # Cost of each mailing
+average_donation <- 13.00  # Average donation received from a positive response
+
+# Initialize a vector to store net profits for each threshold
+thresholds <- seq(0.1, 0.9, by = 0.1)
+net_profits <- numeric(length(thresholds))
+
+# Calculate net profit for each threshold
+for (i in seq_along(thresholds)) {
+  cut_off <- thresholds[i]
+  
+  # Predict labels based on cut-off
+  predicted_labels <- ifelse(probabilities > cut_off, 1, 0)
+  
+  # Calculate True Positives and False Positives
+  true_positives <- sum(predicted_labels == 1 & data$target == "Donor")
+  false_positives <- sum(predicted_labels == 1 & data$target == "No Donor")
+  
+  # Calculate cost and revenue
+  cost <- false_positives * cost_per_mail
+  revenue <- true_positives * average_donation
+  
+  # Calculate net profit
+  net_profits[i] <- revenue - cost
+}
+
+# Identify the optimal threshold
+optimal_index <- which.max(net_profits)
+optimal_threshold <- thresholds[optimal_index]
+optimal_net_profit <- net_profits[optimal_index]
+
+cat("Optimal Cut-off:", optimal_threshold, "\n",
+    "Maximum Net Profit:", optimal_net_profit, "\n")
+```
+
+## Getting Best Model Predictions
+
+```{r}
+# Load future dataset
+future_data <- read.csv("future_fundraising.csv")
+
+set.seed(12345)
+# Initialize zipconvert1 with "No"
+future_data$zipconvert1 <- "No"
+
+# Set zipconvert1 to "Yes" where all other zipconverts are "No"
+future_data$zipconvert1[with(future_data, zipconvert2 == "No" & zipconvert3 == "No" & zipconvert4 == "No" & zipconvert5 == "No")] <- "Yes"
+
+future_data$zip_group[future_data$zipconvert1 == "Yes"] <- '1'
+future_data$zip_group[future_data$zipconvert2 == "Yes"] <- '2'
+future_data$zip_group[future_data$zipconvert3 == "Yes"] <- '3'
+future_data$zip_group[future_data$zipconvert4 == "Yes"] <- '4'
+future_data$zip_group[future_data$zipconvert5 == "Yes"] <- '5'
+
+# Ensure it's a factor
+future_data$zip_group <- as.factor(future_data$zip_group)
+
+# Optionally remove the old zipconvert columns
+future_data$zipconvert1 <- NULL
+future_data$zipconvert2 <- NULL
+future_data$zipconvert3 <- NULL
+future_data$zipconvert4 <- NULL
+future_data$zipconvert5 <- NULL
+
+# Assuming 'target' and other categorical columns are set in the 'future_data'
+future_data$homeowner <- as.factor(future_data$homeowner)
+future_data$income <- as.factor(future_data$income)
+future_data$female <- as.factor(future_data$female)
+future_data$wealth <- as.factor(future_data$wealth)
+
+str(future_data)
+
+# Predict using the best model
+predictions <- predict(knn_model, newdata=future_data)
+
+levels(predictions) <- c("Donor", "No Donor")  # Adjust as necessary to match exact output requirements
+
+#write.table(predictions, file = "Final_randomForest_predictions.csv", col.names = c("value"), row.names = FALSE)
+```

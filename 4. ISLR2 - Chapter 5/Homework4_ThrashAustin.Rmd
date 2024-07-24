@@ -1,0 +1,273 @@
+---
+title: "Homework 4"
+author: "Austin Thrash"
+date: "2023-12-03"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(car)
+library(caret)
+library(leaps)
+library(MASS)
+library(ResourceSelection)
+library(DescTools)
+```
+
+## Exercise 1
+
+```{r}
+setwd('~/Downloads')
+liver <- read.csv(
+  'liver-1 (1).csv',
+  header = TRUE
+)
+sleep <- read.csv(
+  'sleep-1 (1).csv',
+  header = TRUE
+)
+```
+### (a)
+For only females in the data set, find and specify the best set of predictors via stepwise selection with AIC
+criteria for a logistic regression model predicting whether a female is a liver patient.
+
+```{r}
+liver_female <- liver %>%
+  filter(Gender == 'Female')
+
+full.model <- glm(LiverPatient ~ Age + TB + Alkphos + Alamine + Aspartate + TP + ALB, data = liver_female, family = "binomial")
+
+step.model <- step(full.model, direction = "both", 
+                      trace = FALSE)
+summary(step.model)
+```
+We can see that from our results Aspartate is the best predictor for our
+liver patient model.
+
+### (b)
+Comment on the significance of parameter estimates under significance level alpha=0.1, what Hosmer-
+Lemeshow’s test tells us about goodness of fit and point out any issues with diagnostics by checking
+residual plots and cook’s distance plot (with cut-off 0.25).
+```{r}
+cook.d = cooks.distance(step.model)
+round(cook.d, 2)
+
+hoslem.test(step.model$y, fitted(step.model), g=10)
+
+resid.d<-residuals(step.model, type = "deviance")
+resid.p<-residuals(step.model, type = "pearson")
+std.res.d<-residuals(step.model, type = "deviance")/sqrt(1 - hatvalues(step.model)) # standardized deviance residuals
+std.res.p <-residuals(step.model, type = "pearson")/sqrt(1 - hatvalues(step.model)) # standardized pearson residuals
+
+dev.new(width = 1000, height = 1000, unit = "px")
+par(mfrow=c(1,2))
+plot(std.res.d[step.model$model$LiverPatient==0], col = "red", 
+     ylim = c(-3.5,3.5), ylab = "std. deviance residuals", xlab = "ID")
+points(std.res.d[step.model$model$LiverPatient==1], col = "blue")
+
+plot(std.res.p[step.model$model$LiverPatient==0], col = "red", 
+     ylim = c(-3.5,3.5), ylab = "std. Pearson residuals", xlab = "ID")
+points(std.res.p[step.model$model$LiverPatient==1], col = "blue")
+
+plot(cook.d,col="pink", pch=19, cex=1)
+text(cooks.distance(step.model))
+```
+The residuals do not look very random, we can see that they tend to follow a pattern, we can also see that we have quiet a few points that are greater than our cooks-d cuttoff. We can also see from the hosmer test that our model is inadequate
+
+### (c)
+Interpret relationships between predictors in the final model and the odds of an adult female being a liver
+patient. (based on estimated Odds Ratio).
+```{r}
+inf.id = which(cooks.distance(step.model)>0.015)
+final.model=glm(LiverPatient ~ Aspartate + TP, data=liver_female[-inf.id, ], family = "binomial")
+summary(final.model)
+OR=exp(final.model$coefficients)
+round(OR, 3)
+```
+We can see from our odd ratios, for every one unit increase in Aspartate has a 3.1% increase chance of being liver patient. While for every one unit increase in TP there is a 24.1% increase chance of being a liver
+patient.
+
+## Exercise 2
+
+### (a)
+For only males in the data set, find and specify the best set of predictors via stepwise selection with AIC
+criteria for a logistic regression model predicting whether a female is a liver patient.
+
+```{r, warning= FALSE}
+liver_male <- liver %>%
+  filter(Gender == 'Male')
+
+full.model <- glm(LiverPatient ~ Age + TB + Alkphos + Alamine + Aspartate + TP + ALB, data = liver_male, family = "binomial")
+
+step.model <- step(full.model, direction = "both", 
+                      trace = FALSE)
+summary(step.model)
+```
+We can see that every predictor but aspartate is significant in the model.
+
+### (b)
+Comment on the significance of parameter estimates under significance level alpha=0.1, what Hosmer-
+Lemeshow’s test tells us about goodness of fit and point out any issues with diagnostics by checking
+residual plots and cook’s distance plot (with cut-off 0.25).
+```{r}
+cook.d = cooks.distance(step.model)
+round(cook.d, 2)
+
+hoslem.test(step.model$y, fitted(step.model), g=10)
+
+resid.d<-residuals(step.model, type = "deviance")
+resid.p<-residuals(step.model, type = "pearson")
+std.res.d<-residuals(step.model, type = "deviance")/sqrt(1 - hatvalues(step.model)) # standardized deviance residuals
+std.res.p <-residuals(step.model, type = "pearson")/sqrt(1 - hatvalues(step.model)) # standardized pearson residuals
+
+dev.new(width = 1000, height = 1000, unit = "px")
+par(mfrow=c(1,2))
+plot(std.res.d[step.model$model$LiverPatient==0], col = "red", 
+     ylim = c(-3.5,3.5), ylab = "std. deviance residuals", xlab = "ID")
+points(std.res.d[step.model$model$LiverPatient==1], col = "blue")
+
+plot(std.res.p[step.model$model$LiverPatient==0], col = "red", 
+     ylim = c(-3.5,3.5), ylab = "std. Pearson residuals", xlab = "ID")
+points(std.res.p[step.model$model$LiverPatient==1], col = "blue")
+
+plot(cook.d,col="pink", pch=19, cex=1)
+text(cooks.distance(step.model))
+```
+We can notice that there is less of a pattern in the residuals for this model, seems a bit more random than the previous models residuals. We can also see that there are 5 points that are greater than the cook's d cut off. From the hosmer test, we get a p-value greater than 0.5 meaning our model is inadequate
+
+### (c)
+Interpret relationships between predictors in the final model and the odds of an adult female being a liver
+patient. (based on estimated Odds Ratio).
+```{r, warning= FALSE}
+inf.id = which(cooks.distance(step.model)>0.015)
+final.model=glm(LiverPatient ~ Age + TB + Alamine + TP + ALB, data=liver_male[-inf.id, ], family = "binomial")
+summary(final.model)
+OR=exp(final.model$coefficients)
+round(OR, 3)
+```
+We can see that for males:
+- Every one unit increase in Age is associated with a 2.1% increase chance of being a liver patient
+- Every one unit increase in TB is associated with a 71.6% increase chance of being a liver patient
+- Every one unit increase in Alamine is associated with a 2.8% increase chance of being a liver patient
+- Every one unit increase in TP is associated with a 84% increase chance of being a liver patient
+- Every one unit increase in ALB is associated with a 35.3% decrease chance of being a liver patient
+
+This is model is much different from the model made for females. We can see that almost every predictor, execpt for Aspartate, has an effect on males chances of being liver patient. We can also see that are AIC is much higher for the model made for just males, we can see a 200 unit increase in AIC.
+
+## Exercise 3
+
+### (a)
+First find and specify the best set of predictors via stepwise selection with AIC criteria.
+```{r, warning= FALSE}
+full.model <- glm(maxlife10 ~ bodyweight + brainweight + totalsleep + gestationtime + factor(predationindex) + factor(sleepexposureindex), data = sleep, family = "binomial")
+
+null.model <- glm(maxlife10 ~ 1, data = sleep, family = "binomial")
+
+step.model <- step(null.model, direction = "both", scope = list(upper=full.model),
+                      trace = FALSE, alpha = 0.1)
+summary(step.model)
+```
+From our results we can see that only sleepexposureindex of 3 has an significant effect on maxlife10
+
+### (b)
+What does Hosmer-Lemeshow’s test tells us about goodness of fit? And point out any issues with
+diagnostics by checking residual plots and cook’s distance plot. Do not remove influential points but just
+make comments on suspicious observations.
+```{r}
+cook.d = cooks.distance(step.model)
+round(cook.d, 2)
+
+hoslem.test(step.model$y, fitted(step.model), g=10)
+
+resid.d<-residuals(step.model, type = "deviance")
+resid.p<-residuals(step.model, type = "pearson")
+std.res.d<-residuals(step.model, type = "deviance")/sqrt(1 - hatvalues(step.model)) # standardized deviance residuals
+std.res.p <-residuals(step.model, type = "pearson")/sqrt(1 - hatvalues(step.model)) # standardized pearson residuals
+
+dev.new(width = 1000, height = 1000, unit = "px")
+par(mfrow=c(1,2))
+plot(std.res.d[step.model$model$maxlife10==0], col = "red", 
+     ylim = c(-3.5,3.5), ylab = "std. deviance residuals", xlab = "ID")
+points(std.res.d[step.model$model$maxlife10==1], col = "blue")
+
+plot(std.res.p[step.model$model$maxlife10==0], col = "red", 
+     ylim = c(-3.5,3.5), ylab = "std. Pearson residuals", xlab = "ID")
+points(std.res.p[step.model$model$maxlife10==1], col = "blue")
+
+plot(cook.d,col="pink", pch=19, cex=1)
+text(cooks.distance(step.model))
+```
+We can see from our hosmer test, that the model is adequate as the p-value is less than 0.5. We can also see that we have a few points above the cut off in our cook's d plot. These points may be causing some issues, however we are told to not remove them.
+### (c)
+Interpret what the model tells us about relationships between the predictors and the odds of a species'
+maximum lifespan being at least 10 years.
+```{r}
+summary(step.model)
+round(exp(step.model$coefficients), 3)
+```
+We can see that for animals:
+- Every one unit increase in brainweight is associated with a 5.2% increase chance of max life greater than 10.
+- Every one unit increase in totalsleep is associated with a 52.7% increase chance of max life greater than 10.
+
+I am not sure if I may have messed something up or done something incorrectly, but my odd ratios for sleepexposureindex and predationindex seem to be incorrect.
+
+## Exercise 4
+
+### (a)
+First find and specify the best set of predictors via stepwise selection with AIC criteria.
+```{r, warning= FALSE}
+full.model <- glm(maxlife10 ~ bodyweight + brainweight + totalsleep + gestationtime + predationindex + sleepexposureindex, data = sleep, family = "binomial")
+
+null.model <- glm(maxlife10 ~ 1, data = sleep, family = "binomial")
+
+step.model <- step(null.model, direction = "both", scope = list(upper=full.model),
+                      trace = FALSE, alpha = 0.1)
+summary(step.model)
+```
+We can see that we get a similar model when the indexes are seen as continous instead of categorical. However this time, all predictors are significant.
+
+### (b)
+What does Hosmer-Lemeshow’s test tells us about goodness of fit? And point out any issues with
+diagnostics by checking residual plots and cook’s distance plot. Do not remove influential points but just
+make comments on suspicious observations.
+```{r}
+cook.d = cooks.distance(step.model)
+round(cook.d, 2)
+
+hoslem.test(step.model$y, fitted(step.model), g=10)
+
+resid.d<-residuals(step.model, type = "deviance")
+resid.p<-residuals(step.model, type = "pearson")
+std.res.d<-residuals(step.model, type = "deviance")/sqrt(1 - hatvalues(step.model)) # standardized deviance residuals
+std.res.p <-residuals(step.model, type = "pearson")/sqrt(1 - hatvalues(step.model)) # standardized pearson residuals
+
+dev.new(width = 1000, height = 1000, unit = "px")
+par(mfrow=c(1,2))
+plot(std.res.d[step.model$model$maxlife10==0], col = "red", 
+     ylim = c(-3.5,3.5), ylab = "std. deviance residuals", xlab = "ID")
+points(std.res.d[step.model$model$maxlife10==1], col = "blue")
+
+plot(std.res.p[step.model$model$maxlife10==0], col = "red", 
+     ylim = c(-3.5,3.5), ylab = "std. Pearson residuals", xlab = "ID")
+points(std.res.p[step.model$model$maxlife10==1], col = "blue")
+
+plot(cook.d,col="pink", pch=19, cex=1)
+text(cooks.distance(step.model))
+```
+We can see now that our model is inadequate based on the hosmer test as our p-value is greater than 0.5. We can also notice an increase in the number of points greater than the cut off in the cook's d plot.
+
+### (c)
+Interpret what the model tells us about relationships between the predictors and the odds of a species'
+maximum lifespan being at least 10 years.
+```{r}
+summary(step.model)
+round(exp(step.model$coefficients), 3)
+```
+- Every one unit increase in brainweight is associated with a 6.2% increase chance of max life greater than 10.
+- Every one unit increase in totalsleep is associated with a 43.3% increase chance of max life greater than 10.
+
+again, I am unsure what I have done incorrectly as the sleepexporesureindex predictor is reporting a 8000% increase, which I do not think is correct, while predationindex is reporting a 97.6% decrease based on our odd ratios. 

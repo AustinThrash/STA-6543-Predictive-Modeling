@@ -1,0 +1,194 @@
+---
+title: "STA-6543: Assignment 6"
+author: "Austin Thrash - FFK221"
+date: "2024-03-21"
+output: 
+  html_document:
+    toc: true
+toc-title: "Table of Contents:"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR2)
+library(MASS)
+library(boot)
+library(glmnet)
+library(ggplot2) 
+library(pls)
+library(leaps)
+library(gam)
+```
+
+## ISLR Chapter 7
+
+### Question 6
+
+**In this exercise, you will further analyze the Wage data set considered throughout this chapter.**
+
+```{r}
+head(Wage)
+```
+
+#### 6.(a) *Age* to predict *Wage:* Polynomial Regression
+
+**Perform polynomial regression to predict wage using age. Use cross-validation to select the optimal degree d for the polynomial. What degree was chosen, and how does this compare to the results of hypothesis testing using ANOVA? Make a plot of the resulting polynomial fit to the data.**
+
+```{r}
+# Hypothesis Testing Using ANOVA
+ploymodel1 <- lm(wage ~ poly(age, 1), data=Wage)
+ploymodel2 <- lm(wage ~ poly(age, 2), data=Wage)
+ploymodel3 <- lm(wage ~ poly(age, 3), data=Wage)
+ploymodel4 <- lm(wage ~ poly(age, 4), data=Wage)
+ploymodel5 <- lm(wage ~ poly(age, 5), data=Wage)
+
+anova_results <- anova(ploymodel1, ploymodel2, ploymodel3, ploymodel4, ploymodel5)
+print(anova_results)
+```
+
+```{r}
+# Polynomial Regression Using Cross-Validation
+set.seed(4)
+cv.error.10 <- rep(0, 10)
+for (i in 1:10) {
+  glm.fit <- glm(wage ~ poly(age, i), data = Wage)
+  cv.error.10[i] <- cv.glm(Wage, glm.fit, K = 10)$delta[1]
+}
+
+# Getting model number with lowest MSE
+optimal.degree <- which.min(cv.error.10)
+
+# Create Formula
+formula_str <- sprintf("y ~ poly(x, %d, raw = TRUE)", optimal.degree)
+
+# Convert to formula object
+formula_obj <- as.formula(formula_str)
+
+# Plotting
+ggplot(Wage, aes(x = age, y = wage)) + 
+  geom_point(alpha = 0.3) + 
+  geom_smooth(method = "lm", formula = formula_obj, color = "blue") + 
+  labs(title = paste("Degree-", optimal.degree, "Polynomial Fit"))
+```
+
+When performing Polynomial Regression using cross-validation (k-fold validation), the results suggest using a degree of 4 and it seems to be a pretty good fit. However when using hypothesis testing using ANOVA, the optimal degree is 3, as going any higher than that does not grant significant improvement to the model and will add further complexity.
+
+#### 6.(b) *Age* to predict *Wage*: Step Function
+
+**Fit a step function to predict wage using age, and perform cross-validation to choose the optimal number of cuts. Make a plot of the fit obtained.**
+
+```{r}
+set.seed(4)
+cuts <- numeric(19)
+for (i in 2:20) {
+  Wage$age_cut <- cut(Wage$age, i, include.lowest = TRUE)
+
+  lm.fit <- glm(wage ~ age_cut, data = Wage)
+
+  cuts[i - 1] <- cv.glm(Wage, lm.fit, K = 10)$delta[1]
+}
+
+bins <- 2:20
+
+plot(bins, cuts, type = "b", pch = 19, col = "blue", xlab = "Number of Bins", ylab = "CV Error", main = "CV Error vs. Number of Bins for Age Binning")
+```
+
+```{r}
+
+# Getting model number with lowest MSE
+optimal.cut <- which.min(cuts) + 1
+
+# Create Formula
+formula_str <- sprintf("y ~ cut(x, %d, raw = TRUE)", optimal.cut)
+
+# Convert to formula object
+formula_obj <- as.formula(formula_str)
+
+# Plotting
+ggplot(Wage, aes(x = age, y = wage)) + 
+  geom_point(alpha = 0.3) + 
+  geom_smooth(method = "lm", formula = formula_obj, color = "blue") + 
+  labs(title = paste("Degree -", optimal.cut, ": Step Function"))
+```
+
+When using the step function to predict Wage using Age, the results suggest using a step function with 16 intervals. However I would most likely use an interval of 7 or 8 as the "1 Standard Deviation" rule applies and they would make the model less complex.
+
+### Question 10
+
+**This question relates to the College data set.**
+
+```{r}
+head(College)
+```
+
+#### 10.(a)
+
+**Split the data into a training set and a test set. Using out-of-state tuition as the response and the other variables as the predictors, perform forward stepwise selection on the training set in order to identify a satisfactory model that uses just a subset of the predictors.**
+
+```{r}
+# Performing 70/30 train test split
+set.seed(4)
+train_index <- sample(1:nrow(College), round(nrow(College) * 0.7))
+
+train <- College[train_index, ]
+test <- College[-train_index, ]
+
+nv_max <- ncol(College) - 2
+
+fwd <- regsubsets(Outstate ~ ., data = train, method = "forward", nvmax = nv_max)
+summary1 <- summary(fwd)
+summary1
+
+ggplot() +
+  geom_path(aes(x = seq_along(summary1$bic), y = summary1$bic)) +
+  geom_point(aes(x = which.min(summary1$bic), y = min(summary1$bic)), size = 3, colour = "red") +
+  xlab("Number of predictors") +
+  ylab("BIC") +
+  theme_minimal()
+```
+
+When performing forward stepwise selection and using the out-of-state tutition as the response variable, the results suggest using 9 predictors which are:
+
+*Private, Accept, Enroll, Room.Board, Personal, Terminal, perc.alumni, Expend, and Grad.Rate*
+
+However if I were picking the number of predictors I would most likely chose to use 5 as it has a BIC value closer the BIC value when using 9 predictors. This would also reduce the complexity of the model and might provide more accurate results.
+
+#### 10.(b)
+
+**Fit a GAM on the training data, using out-of-state tuition as the response and the features selected in the previous step as the predictors. Plot the results, and explain your findings.**
+
+```{r}
+fits <- gam(Outstate ~ Private + s(Accept) + s(Enroll) + s(Room.Board) + s(Personal) + s(Terminal) + s(perc.alumni) + s(Expend) + s(Grad.Rate), data = train)
+par(mfrow = c(3,4))
+plot(fits, se = TRUE)
+```
+
+From the results, we can see that '*Private*', '*Accept*', '*Room.Board*', '*perc.alumni*', '*Expend*', and '*Grad.Rate*' all seem to exhibit a positive relationship with the response variable; For each increase in these variables we can expect to see an increase in the response on average. While '*Enroll*' and '*Personal*' have a negative relationship with the response; On average we expect to see a decrease in the response for each increase of these variables.
+
+#### 10.(c)
+
+**Evaluate the model obtained on the test set, and explain the results obtained.**
+
+```{r}
+preds_nonlinear <- predict(fits, newdata = test)
+mse_nonlinear <- mean((preds_nonlinear - test$Outstate)^2)
+
+fits_lm <- lm(Outstate ~ Private + Accept + Enroll + Room.Board + Personal + Terminal + perc.alumni + Expend + Grad.Rate, data = train)
+preds_linear <- predict(fits_lm, newdata = test)
+mse_linear <- mean((preds_linear - test$Outstate)^2)
+
+paste("Linear RMSE:", sqrt(mse_linear))
+paste("Non-linear RMSE:", sqrt(mse_nonlinear))
+```
+
+We can evaluate the model by looking at the "R Mean Squared Error" (RMSE) and comparing it to a normal linear model RMSE using the same predictors. From the results we can see that the non-linear model out performed the linear model by a difference of about 214. However if using less predictors, one could possibly obtain better results.
+
+#### 10.(d)
+
+**For which variables, if any, is there evidence of a non-linear relationship with the response?**
+
+```{r}
+summary(fits)
+```
+
+To answer this question we can look at the "Anova for Nonparametric Effects" section. The only variables that exhibit a non-linear relationship with the response is '*Accept*', '*Enroll*', '*Personal*', and '*Expend*' with p-values of 5.313e-09, 0.0006175, 0.0153515, and \<2.2e-16 respectively.

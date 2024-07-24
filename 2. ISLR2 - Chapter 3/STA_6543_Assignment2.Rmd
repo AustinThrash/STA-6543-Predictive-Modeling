@@ -1,0 +1,219 @@
+---
+title: "STA_6543_Assignment_2"
+author: "Austin Thrash"
+date: "2024-02-21"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(ISLR2)
+```
+
+## Question 2:
+
+### Carefully explain the differences between the KNN classifier and KNN regression methods.
+
+KNN classifier and KNN regression models are very similar, both using the principle of finding nearest neighbors.
+However, they are used for different types of problems(classification vs regression).\
+
+KNN classification is used for classifying data points into categories or classes based on the majority class of their nearest neighbors.
+The output is that of a class label representing the predicted category.
+These models are more flexible than KNN regression as it is non-linear.\
+
+KNN regression is to predict a continuous value for each data point based on the weighted average of the target values of its nearest neighbors.
+The output for KNN regression models is a continuous value representing the predicted target for each data point.\
+
+## Question 9:
+
+### This question involves the use of multiple linear regression on the Auto data set.
+
+### 9.(a) Produce a scatterplot matrix which includes all of the variables in the data set.
+
+```{r}
+pairs(Auto)
+```
+
+### 9.(b) Compute the matrix of correlations between the variables using the function cor(). You will need to exclude the name variable, which is qualitative.
+
+```{r}
+drops <- c("name")
+cor(Auto[ , !(names(Auto) %in% drops)])
+```
+
+### 9.(c) Use the lm() function to perform a multiple linear regression with mpg as the response and all other variables except name as the predictors. Use the summary() function to print the results.
+
+```{r}
+auto.model <- lm(mpg ~ . -name, data = Auto)
+summary(auto.model)
+```
+
+### (c) i. Is there a relationship between the predictors and the response?
+
+\
+It seems like every predictor has a relationship with the response variable, however some relationships are stronger than others.
+We can see the strength of these relationships as represented by the Estimate value for each predictor in the model results.
+
+### (c) ii. Which predictors appear to have a statistically signifcant relationship to the response?
+
+\
+There are 4 predictors that have a relationship with the response variable, mpg:\
+- With every one unit increase of displacement we can notice an increase in the response variable by 0.019896 units.\
+- With every one unit increase of weight we can notice an decrease in the response variable by 0.006474 units.\
+- With every one unit increase of year we can notice an increase in the response variable by 0.750773 units.\
+- With every one unit increase of origin we can notice an increase in the response variable by 1.426141 units.\
+
+### (c) iii. What does the coefficient for the year variable suggest?
+
+\
+The coefficient for the year variable suggests that newer cars have better gas mileage than older cars.
+
+### 9.(d) Use the plot() function to produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit. Do the residual plots suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage?
+
+```{r}
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(auto.model)
+```
+
+\
+From the residuals vs fitted plot we don't notice any particular pattern, however it does not illustrate any problems.\
+If we look at the Q-Q Residuals plot we can notice a few outliers on the right side of the plot, this could possibly create a right skew in the distribution of the data.\
+The residuals vs leverage plot seems to indicate that data point '14' is causing issues and creating unusually high leverage.\
+
+### 9.(e) Use the \* and : symbols to fit linear regression models with interaction effects. Do any interactions appear to be statistically signifcant?
+
+```{r}
+auto2.model <- lm(mpg ~ displacement * weight * year * origin, data = Auto)
+summary(auto2.model)
+auto3.model <- lm(mpg ~ displacement * weight * cylinders * origin, data = Auto)
+summary(auto3.model)
+auto4.model <- lm(mpg ~ acceleration * weight * cylinders * origin, data = Auto)
+summary(auto4.model)
+```
+
+\
+The model with the most interactions that are significantly significant is 'mpg \~ acceleration \* weight \* cylinders \* origin'.
+Every interaction in this model is below the P Value is less than 0.05 with the lowest being weight:cylinders and acceleration:cylinders.
+
+### 9.(f) Try a few different transformations of the variables, such as log(X), √X, X\^2. Comment on your findings.
+
+```{r}
+auto5.model <- lm(mpg ~ log(displacement) + log(weight) + log(year) + log(origin), data = Auto)
+summary(auto5.model)
+auto5.model <- lm(mpg ~ I(displacement^2) + sqrt(weight) + sqrt(year) + sqrt(origin), data = Auto)
+summary(auto5.model)
+auto6.model <- lm(mpg ~ I(displacement^2) * sqrt(weight) * sqrt(year) * sqrt(origin), data = Auto)
+summary(auto6.model)
+```
+
+\
+It seems like taking the square root of each variable making the relationship between the predictor and response variable stronger.\
+Taking the square of 'displacement' while taking the square root of the rest makes all of the predictors very statistically significant.\
+
+## Question 10:
+
+### This question should be answered using the Carseats data set.
+
+### 10.(a) Fit a multiple regression model to predict Sales using Price, Urban, and US.
+
+```{r}
+df <- Carseats
+df$Urban <- as.factor(df$Urban)
+df$US <- as.factor(df$US)
+carseat.model <- lm(Sales ~ Price + Urban + US, data = df)
+```
+
+### 10.(b) Provide an interpretation of each coefficient in the model. Be careful---some of the variables in the model are qualitative!
+
+```{r}
+summary(carseat.model)
+```
+
+The results of the the linear regression model suggest that Price and USYes seem to have the strongest relationship with the 'Sales' variable.
+Both of these predictors are statistically significant.
+Urban does not seem to have a significant effect on Sales.
+
+\- For every unit increase in Price there is an decrease in Sales by -0.054459 units.
+
+\- For every unit increase in USYes there is an increase in Sales by 1.200573 units.
+
+### 10.(c) Write out the model in equation form, being careful to handle the qualitative variables properly.
+
+\
+Sales\^ = 13.043469 − 0.054459 ⋅ Price − 0.021916 ⋅ Urban + 1.200573 ⋅ US\
+
+### 10.(d) For which of the predictors can you reject the null hypothesis H0 : βj = 0?
+
+\
+The predictors which reject the null hypothesis are Price and USYes.
+Urban fails to reject the null hypothesis as the P Value for this predictor is not less than 0.05.
+
+### 10.(e) On the basis of your response to the previous question, fit a smaller model that only uses the predictors for which there is evidence of association with the outcome.
+
+```{r}
+carseat2.model <- lm(Sales ~ Price + US, data = df)
+summary(carseat2.model)
+```
+
+### 10.(f) How well do the models in (a) and (e) ft the data?
+
+\
+While both models fit the data moderately well, the second model is slightly better.
+The model is statistically significant overall as can be by the F-statistic and its corresponding p-value.
+However the RSE suggests that there is still some unexplained variability in the model.\
+
+### 10.(g) Using the model from (e), obtain 95 % confidence intervals for the coefficient(s).
+
+```{r}
+confint(carseat2.model)
+```
+
+### 10.(h) Is there evidence of outliers or high leverage observations in the model from (e)?
+
+```{r}
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(carseat2.model)
+```
+
+\
+There do not seem to be any strong outliers in the data, however it does seem that there is an observation that is causing high leverage in the model based on the Residuals vs Leverage plot.
+
+# Question 12:
+
+### This problem involves simple linear regression without an intercept.
+
+### 12.(a) Recall that the coefficient estimate βˆ for the linear regression of Y onto X without an intercept is given by (3.38). Under what circumstance is the coefficient estimate for the regression of X onto Y the same as the coefficient estimate for the regression of Y onto X?
+
+X onto Y:
+
+β̂=∑~i~x~i~y~i~ / ∑~j~y^2^~j~
+
+Y onto X:
+
+β̂=∑~i~x~i~y~i~ / ∑~j~x^2^~j~\
+
+### 12.(b) Generate an example in R with n = 100 observations in which the coefficient estimate for the regression of X onto Y is different from the coefficient estimate for the regression of Y onto X.
+
+```{r}
+x = rnorm(100)
+y = rbinom(100,2,0.3)
+estiReg <- lm(y~x+0)
+summary(estiReg)
+estiReg2 <- lm(x~y+0)
+summary(estiReg2)
+```
+
+### 12.(c) Generate an example in R with n = 100 observations in which the coefficient estimate for the regression of X onto Y is the same as the coefficient estimate for the regression of Y onto X.
+
+```{r}
+x = 1:100
+y = 100:1
+estiReg3 <- lm(y~x+0)
+summary(estiReg3)
+estiReg4 <- lm(x~y+0)
+summary(estiReg4)
+```
